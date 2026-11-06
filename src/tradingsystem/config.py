@@ -84,7 +84,7 @@ class GatesConfig(_Frozen):
     gate3: Gate3Config
 
     @model_validator(mode="after")
-    def _ordered(self) -> "GatesConfig":
+    def _ordered(self) -> GatesConfig:
         if not (self.research_start < self.research_end < self.holdout_start):
             raise ValueError("need research_start < research_end < holdout_start")
         return self

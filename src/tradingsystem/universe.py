@@ -32,7 +32,7 @@ class Universe:
         self._all = frozenset(s for _, s, _ in changes)
 
     @classmethod
-    def from_csv(cls, path: Path) -> "Universe":
+    def from_csv(cls, path: Path) -> Universe:
         with open(path, newline="", encoding="utf-8") as f:
             rows = [(date.fromisoformat(r["date"]), r["symbol"].strip(), r["action"].strip()) for r in csv.DictReader(f)]
         return cls(rows)
