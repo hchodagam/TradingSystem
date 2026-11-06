@@ -1,0 +1,13 @@
+# Indian equity delivery charges (Dhan). Starting values: tests/fixtures/contract_notes is the authority.
+brokerage_delivery: 0
+stt_pct: 0.001              # 0.1% on buy and sell
+exchange_txn_pct: 0.0000297 # NSE transaction charge
+sebi_pct: 0.000001          # Rs 10 per crore
+stamp_buy_pct: 0.00015      # 0.015% on buy (delivery)
+gst_pct: 0.18               # on brokerage + exchange + SEBI + DP
+dp_per_sell_scrip_day: 12.5
+slippage_pct: 0.001         # 0.1% on next-day open
+rounding:
+  stt: 0
+  stamp: 0
+  other: 2

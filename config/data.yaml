@@ -1,0 +1,10 @@
+cache_dir: data/cache
+reference_dir: reference
+dhan_base_url: https://api.dhan.co/v2
+scrip_master_url: https://images.dhan.co/api-data/api-scrip-master.csv
+max_days_per_request: 1825
+retries: 4
+backoff_seconds: 2.0
+prices_adjusted_by_dhan: false
+benchmark_symbol: NIFTY 100
+abnormal_move_pct: 0.20
