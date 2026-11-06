@@ -24,6 +24,23 @@ ESCAPES = {
     "excelwriter": "pd.ExcelWriter('x')",
     "dunder_escape": "().__class__.__bases__",
     "dunder_name": "__builtins__",
+    # final-review escapes (C1)
+    "sys_modules_chain": 'm = pd.core.common.sys.modules["os"]',
+    "submodule_from_import": "from pandas.util._print_versions import os",
+    "submodule_import": "import pandas.io.common",
+    "ctypeslib": "import numpy.ctypeslib as c",
+    "frame_walk": "g = (x for x in []); g.gi_frame.f_back.f_globals",
+    "traceback_frame": "e.__traceback__",
+    "tb_frame": "t.tb_frame",
+    "to_string_path": "bars.to_string('x.txt')",
+    "ndarray_dump": "a.dump('x')",
+    "fromregex": "np.fromregex('x', 'r', [])",
+    "excelfile": "pd.ExcelFile('x')",
+    "styler": "bars.style.to_string('x')",
+    "private_attr": "pd._libs",
+    "pd_eval": "pd.eval('1 + 1')",
+    "df_query": "bars.query('close > 1')",
+    "from_pandas": "from pandas import read_csv",
 }
 
 
@@ -44,6 +61,10 @@ def test_allowed_code_is_clean():
         "    return out\n"
     )
     assert static_check(code) == []
+
+
+def test_from_math_import_allowed():
+    assert static_check("from math import sqrt, log\nimport numpy as np\n") == []
 
 
 def test_violation_mentions_line_number():

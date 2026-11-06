@@ -2,7 +2,7 @@
 
 stdin:  4-byte big-endian header length, JSON header {code, params_list, incremental_from, max_rss_mb},
         then an Arrow IPC stream of bars.
-stdout: Arrow IPC stream of all runs' signals (reset_index) with an extra int column "_run".
+stdout: per run, an 8-byte big-endian length then an Arrow IPC stream of that run's signals (reset_index).
 stderr: on failure, a final JSON line {"reason": ..., "detail": ...}; exit code 3.
 """
 from __future__ import annotations
@@ -15,7 +15,6 @@ import sys
 import traceback
 
 ALLOWED = {"pandas", "numpy", "math"}
-RUN_COL = "_run"
 
 _SAFE_BUILTINS = [
     "abs", "all", "any", "bool", "dict", "divmod", "enumerate", "filter", "float", "frozenset", "int",
@@ -71,7 +70,7 @@ def main() -> None:
     safe["__import__"] = _restricted_import
     k = header.get("incremental_from")
     frames = []
-    for run, raw_params in enumerate(header["params_list"]):
+    for raw_params in header["params_list"]:
         env = {"__builtins__": dict(safe), "__name__": "strategy"}  # fresh module state per run
         try:
             exec(compile(header["code"], "strategy.py", "exec"), env)  # noqa: S102 - this is the sandbox
@@ -98,16 +97,18 @@ def main() -> None:
             _fail("crash", traceback.format_exc(limit=5))
         if not isinstance(out, pd.DataFrame):
             _fail("bad_output", f"signals() must return a DataFrame, got {type(out).__name__}")
-        frame = out.reset_index()
-        frame[RUN_COL] = run
-        frames.append(frame)
+        try:
+            tbl = pa.Table.from_pandas(out.reset_index(), preserve_index=False)
+        except Exception as e:  # noqa: BLE001
+            _fail("bad_output", f"signals() output cannot be serialised: {e}")
+        sink = io.BytesIO()
+        with pa.ipc.new_stream(sink, tbl.schema) as w:
+            w.write_table(tbl)
+        frames.append(sink.getvalue())
 
-    try:
-        tbl = pa.Table.from_pandas(pd.concat(frames, ignore_index=True), preserve_index=False)
-    except Exception as e:  # noqa: BLE001
-        _fail("bad_output", f"signals() output cannot be serialised: {e}")
-    with pa.ipc.new_stream(raw_out, tbl.schema) as w:
-        w.write_table(tbl)
+    for blob in frames:  # one length-prefixed Arrow stream per run: each keeps its own columns and dtypes
+        raw_out.write(struct.pack(">Q", len(blob)))
+        raw_out.write(blob)
     raw_out.flush()
 
 

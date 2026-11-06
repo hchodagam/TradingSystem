@@ -27,6 +27,8 @@ gate2:
   overfit_param_count: 5
   overfit_dsr_min: 0.99            # default chosen in plan; spec says only "stricter"
   overfit_sens_min_profitable: 0.80
+  lookahead_param_window: 60   # days re-run incrementally for each param's range ends
+  sandbox_chunk_size: 16       # param sets per sandbox process (bounds child memory)
 
 gate3:
   min_sharpe_ratio_vs_research: 0.5

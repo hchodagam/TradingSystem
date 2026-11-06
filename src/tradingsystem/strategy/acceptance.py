@@ -53,11 +53,21 @@ def lookahead_check(s: LoadedStrategy, params: Params, bars: pd.DataFrame, windo
                     batch: pd.DataFrame | None = None) -> list[str]:
     """Re-run signals() day by day over the last `window` dates; output must equal the batch run.
     Pass `batch` (signals on the same bars and params) to save a sandbox start."""
-    dates = bars.index.get_level_values("date").unique()
-    k = max(len(dates) - window, 1)
+    k = incremental_start(bars, window)
     if batch is None:
         batch = run_signals(s, params, bars)
     inc = run_signals(s, params, bars, incremental_from=k)
+    return compare_incremental(batch, inc, bars, k)
+
+
+def incremental_start(bars: pd.DataFrame, window: int) -> int:
+    n = len(bars.index.get_level_values("date").unique())
+    return max(n - window, 1)
+
+
+def compare_incremental(batch: pd.DataFrame, inc: pd.DataFrame, bars: pd.DataFrame, k: int) -> list[str]:
+    """Differences between a batch run and a day-by-day run from date index k: any means look-ahead."""
+    dates = bars.index.get_level_values("date").unique()
     expected = batch[batch.index.get_level_values("date") >= dates[k]]
     if not inc.index.equals(expected.index):
         return ["incremental run returned different rows from the batch run"]

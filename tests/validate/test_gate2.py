@@ -56,8 +56,59 @@ def test_planted_edge_passes_gate1_and_gate2(edge_bars):
     assert g1.passed, g1.checks
     g2 = gate2(s, edge_bars, ctx, CFG, family_trials=1, family_sr_var=None)
     assert g2.passed, [c for c in g2.checks if not c.passed]
-    assert [c.name for c in g2.checks] == ["wf_oos_ratio", "wf_losing_years", "sensitivity", "mc_dd95",
-                                           "cost_stress", "dsr"]
+    assert [c.name for c in g2.checks] == ["lookahead_params", "signals_valid", "wf_oos_ratio", "wf_losing_years",
+                                           "sensitivity", "mc_dd95", "cost_stress", "dsr"]
+
+
+def test_leak_hidden_in_grid_fails_gate2(noise_bars):
+    # I1: clean at the default, leaky at lag > 0
+    s = load_strategy(FIX / "leaky_param.py")
+    g = gate2(s, noise_bars, ctx_for(noise_bars), CFG, family_trials=1, family_sr_var=None)
+    assert not g.passed
+    c = next(c for c in g.checks if c.name == "lookahead_params")
+    assert not c.passed and c.value >= 1
+    assert any("lag" in n for n in g.notes)
+
+
+def test_bad_output_in_grid_fails_with_note(noise_bars):
+    # I2: well-formed at the default, missing 'stop' when n > 5
+    s = load_strategy(FIX / "bad_output_param.py")
+    g = gate2(s, noise_bars, ctx_for(noise_bars), CFG, family_trials=1, family_sr_var=None)
+    assert not g.passed
+    assert not next(c for c in g.checks if c.name == "signals_valid").passed
+    assert any("stop" in n and "n" in n for n in g.notes)
+
+
+def test_no_params_sensitivity_not_applicable(edge_bars):
+    # I8: nothing to perturb is not a failure
+    s = load_strategy(FIX / "no_params.py")
+    g = gate2(s, edge_bars, ctx_for(edge_bars), CFG, family_trials=1, family_sr_var=None)
+    c = next(c for c in g.checks if c.name == "sensitivity")
+    assert c.passed and np.isnan(c.value)
+    assert any("sensitivity" in n for n in g.notes)
+
+
+def test_prefetch_runs_in_chunks_and_keeps_signals_compact(monkeypatch):
+    # I6: bounded batches per sandbox process; only rows with a signal are kept
+    import tradingsystem.validate.gate2 as g2
+    from tradingsystem.strategy.spec import Params
+    bars = make_bars(SYMS[:2], date(2020, 1, 1), date(2020, 3, 31), seed=0)
+    calls = []
+
+    def fake_many(strategy, params_list, b, **kw):
+        calls.append(len(params_list))
+        outs = []
+        for _ in params_list:
+            o = pd.DataFrame({"entry": False, "exit": False, "stop": np.nan}, index=b.index)
+            o.iloc[0, 0] = True
+            outs.append(o)
+        return outs
+
+    monkeypatch.setattr(g2, "run_signals_many", fake_many)
+    run = g2._Runner(load_strategy(FIX / "random_entry.py"), bars, ctx_for(bars), CFG, START, END, chunk_size=2)
+    run.prefetch([Params(pct=v) for v in (0.02, 0.03, 0.04, 0.05, 0.06)])
+    assert calls == [2, 2, 1]
+    assert all(len(v) == 1 for v in run._sig.values())
 
 
 def test_overfit_strategy_uses_stricter_thresholds(tmp_path):

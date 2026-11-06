@@ -7,9 +7,10 @@ from synthetic import make_bars
 
 from tradingsystem.config import load_config
 from tradingsystem.strategy.loader import load_strategy
+from tradingsystem.strategy.sandbox import SandboxError
 from tradingsystem.universe import Universe
 from tradingsystem.validate.gate2 import BacktestContext
-from tradingsystem.validate.gate3 import HoldoutAlreadyUsed, HoldoutLedger, gate3
+from tradingsystem.validate.gate3 import HoldoutAlreadyUsed, HoldoutDataInvalid, HoldoutLedger, gate3
 
 ROOT = Path(__file__).parents[2]
 FIX = ROOT / "tests" / "fixtures" / "strategies"
@@ -68,10 +69,35 @@ def test_refuses_when_gates_1_2_not_passed(strategy, ctx, ledger):
     assert store.calls == 0 and not ledger.used(strategy.hash)
 
 
-def test_crash_during_run_still_uses_the_holdout(strategy, ctx, ledger):
+def test_data_failure_does_not_use_the_holdout(strategy, ctx, ledger):
+    # I3: infrastructure problems must not burn the one-shot run
     with pytest.raises(RuntimeError):
         gate3(strategy, FakeStore(fail=True), ctx, CFG, 2.0, True, ledger)
-    assert ledger.used(strategy.hash)
+    assert not ledger.used(strategy.hash)
+
+
+def test_invalid_holdout_data_does_not_use_the_holdout(strategy, ctx, ledger):
+    from tradingsystem.data.checks import Issue, ValidationReport
+
+    def bad(bars):
+        return ValidationReport(False, [Issue("missing_day", None, pd.Timestamp("2023-03-01"), "gap")])
+
+    with pytest.raises(HoldoutDataInvalid):
+        gate3(strategy, FakeStore(), ctx, CFG, 2.0, True, ledger, validate=bad)
+    assert not ledger.used(strategy.hash)
+
+
+def test_strategy_crash_during_run_uses_the_holdout(ctx, ledger, tmp_path):
+    code = (FIX / "dip_buyer.py").read_text().replace(
+        "    close = bars[\"close\"]",
+        "    if bars.index.get_level_values(\"date\").max() > pd.Timestamp(\"2023-01-01\"):\n"
+        "        raise ValueError(\"boom\")\n    close = bars[\"close\"]")
+    p = tmp_path / "crashy.py"
+    p.write_text(code)
+    s = load_strategy(p)
+    with pytest.raises(SandboxError):
+        gate3(s, FakeStore(), ctx, CFG, 2.0, True, ledger)
+    assert ledger.used(s.hash)
 
 
 def test_changed_code_gets_its_own_entry(strategy, ctx, ledger, tmp_path):

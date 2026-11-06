@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -10,8 +11,10 @@ import pandas as pd
 
 from tradingsystem.backtest.engine import BacktestConfig, BacktestResult, run_backtest
 from tradingsystem.config import AppConfig
+from tradingsystem.data.checks import ValidationReport
+from tradingsystem.strategy.acceptance import check_output
 from tradingsystem.strategy.loader import LoadedStrategy
-from tradingsystem.strategy.sandbox import run_signals
+from tradingsystem.strategy.sandbox import SandboxError, run_signals
 from tradingsystem.validate import CheckResult, GateResult
 from tradingsystem.validate.gate2 import BacktestContext
 from tradingsystem.validate.metrics import max_drawdown, returns, sharpe
@@ -21,9 +24,16 @@ class HoldoutAlreadyUsed(Exception):
     pass
 
 
+class HoldoutDataInvalid(Exception):
+    def __init__(self, report):
+        super().__init__(f"holdout data failed validation ({len(report.issues)} issues); the holdout was NOT used")
+        self.report = report
+
+
 class HoldoutLedger:
-    """Append-only JSON list of holdout runs (moves to Postgres in Plan 3). An entry is written before the
-    run starts, so a run that crashes still counts as used."""
+    """Append-only JSON list of holdout runs (moves to Postgres in Plan 3). The entry is written once the
+    holdout data has loaded and validated, before the strategy runs: a strategy crash counts as the run,
+    a data or infrastructure failure does not."""
 
     def __init__(self, path: Path = Path("state/holdout_runs.json")):
         self.path = Path(path)
@@ -62,17 +72,29 @@ def holdout_backtest(strategy: LoadedStrategy, bars: pd.DataFrame, ctx: Backtest
                      cfg: AppConfig) -> BacktestResult:
     """Signals on research history + holdout (warm-up), trading only from holdout_start."""
     sig = run_signals(strategy, strategy.spec.defaults(), bars)
-    last = bars.index.get_level_values("date").max().date()
+    errs = check_output(sig, bars)
+    if errs:
+        raise SandboxError("bad_output", "; ".join(errs))
+    last =bars.index.get_level_values("date").max().date()
     bt = BacktestConfig(cfg.gates.holdout_start, last, cfg.risk.initial_capital)
     return run_backtest(sig, bars, ctx.universe, ctx.sectors, strategy.spec, cfg, bt)
 
 
 def gate3(strategy: LoadedStrategy, store, ctx: BacktestContext, cfg: AppConfig, research_sharpe: float,
-          research_passed_gates_1_2: bool, ledger: HoldoutLedger) -> GateResult:
+          research_passed_gates_1_2: bool, ledger: HoldoutLedger,
+          validate: Callable[[pd.DataFrame], ValidationReport] | None = None) -> GateResult:
+    """`validate` checks the holdout bars (the CLI passes validate_bars over [holdout_start, last])."""
     if not research_passed_gates_1_2:
         raise ValueError("the holdout runs only after Gates 1 and 2 pass")
-    ledger.claim(strategy.hash, strategy.spec.name)
+    if ledger.used(strategy.hash):
+        raise HoldoutAlreadyUsed(f"holdout already run for {strategy.spec.name} ({strategy.hash[:12]}); "
+                                 "failure is final")
     bars = store.holdout_bars(sorted(ctx.universe.all_symbols()))
+    if validate is not None:
+        report = validate(bars)
+        if not report.ok:
+            raise HoldoutDataInvalid(report)
+    ledger.claim(strategy.hash, strategy.spec.name)
     r = holdout_backtest(strategy, bars, ctx, cfg)
     s = sharpe(returns(r.equity), cfg.gates.risk_free_rate)
     ratio = s / research_sharpe if research_sharpe > 0 else 0.0

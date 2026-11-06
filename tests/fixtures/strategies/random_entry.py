@@ -14,8 +14,9 @@ SPEC = {
 
 def signals(bars, p):
     # deterministic per (date, symbol): no look-ahead, same answer batch or incremental
-    h = pd.util.hash_pandas_object(bars.index.to_frame(index=False), index=False).to_numpy()
-    u = (h % np.uint64(10_000)).astype(float) / 10_000.0
+    day = bars.index.get_level_values("date").to_numpy().astype("datetime64[D]").astype(np.int64)
+    sym = np.asarray(bars.index.codes[1], dtype=np.int64)
+    u = ((day * 2654435761 + sym * 40503) % 10007).astype(float) / 10007.0
     out = pd.DataFrame(index=bars.index)
     out["entry"] = u < p.pct
     out["exit"] = False

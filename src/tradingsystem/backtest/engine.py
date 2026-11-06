@@ -184,7 +184,7 @@ def run_backtest(signals: pd.DataFrame, bars: pd.DataFrame, universe: Universe, 
                 pending_exits[sym] = "max_holding"
 
         if ks.allows_entries():
-            members = universe.members(d)
+            members = universe.members(d) if d.date() >= universe.first_date else frozenset()
             intents = []
             for sym in sorted(sigs):
                 entry, _x, stop = sigs[sym]

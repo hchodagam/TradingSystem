@@ -44,6 +44,26 @@ def test_leaky_strategy_exits_2(capsys, config_dir):
     assert code == 2 and "lookahead" in out
 
 
+def test_bad_output_on_full_history_exits_2(capsys, config_dir):
+    # I2: output is checked on the full research run, not only the acceptance smoke run
+    code, out = run(capsys, "evaluate", str(FIX / "bad_output_long.py"), "--config", str(config_dir),
+                    "--synthetic-seed", "1")
+    assert code == 2 and "stop" in out
+
+
+@pytest.mark.parametrize("exc", [FileNotFoundError("x.parquet"), KeyError("OLDCO"), RuntimeError("boom")])
+def test_unexpected_errors_exit_2_not_1(capsys, monkeypatch, exc):
+    # I5: exit 1 means "a gate failed"; anything else is an error (2)
+    import tradingsystem.cli as cli
+
+    def explode(args):
+        raise exc
+
+    monkeypatch.setattr(cli, "evaluate", explode)
+    assert cli.main(["evaluate", "x.py"]) == 2
+    assert "error" in capsys.readouterr().out.lower()
+
+
 def test_missing_file_exits_2(capsys, config_dir):
     code, out = run(capsys, "evaluate", "nope.py", "--config", str(config_dir), "--synthetic-seed", "1")
     assert code == 2 and "nope.py" in out

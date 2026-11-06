@@ -164,6 +164,14 @@ def test_non_member_entry_ignored():
     assert r.trades.empty
 
 
+def test_start_before_first_universe_snapshot():
+    # I4: no members before the first snapshot -> no entries, no crash
+    bars = make_bars()
+    late = Universe([(DAYS[5].date(), "A", "add"), (DAYS[5].date(), "B", "add")])
+    r = run(bars, make_signals(bars, entries=[(1, "A"), (6, "B")]), universe=late)
+    assert list(r.trades.symbol) == ["B"]
+
+
 def test_upper_circuit_entry_skipped():
     bars = make_bars()
     set_bar(bars, 2, "A", open=110, high=110, low=110, close=110)

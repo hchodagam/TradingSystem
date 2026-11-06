@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import struct
 import subprocess
 import sys
@@ -24,7 +25,6 @@ import pyarrow as pa
 
 from tradingsystem.strategy.loader import LoadedStrategy
 from tradingsystem.strategy.params import Params
-from tradingsystem.strategy.runner import RUN_COL
 from tradingsystem.strategy.static_check import static_check
 
 Reason = Literal["static", "timeout", "memory", "crash", "bad_output"]
@@ -55,6 +55,14 @@ def _encode(code: str, params_list: list[Params], bars: pd.DataFrame, incrementa
     with pa.ipc.new_stream(sink, tbl.schema) as w:
         w.write_table(tbl)
     return struct.pack(">I", len(header)) + header + sink.getvalue()
+
+
+def _child_env() -> dict[str, str]:
+    """Minimal environment: nothing from .env (Dhan token) or the user's shell reaches strategy code."""
+    keep = ("SYSTEMROOT", "SystemRoot", "PATH", "TEMP", "TMP", "LANG", "LC_ALL")
+    env = {k: os.environ[k] for k in keep if k in os.environ}
+    env["PYTHONHASHSEED"] = "0"
+    return env
 
 
 def _tree_rss(ps: psutil.Process) -> int:
@@ -99,7 +107,7 @@ def run_signals_many(strategy: LoadedStrategy, params_list: list[Params], bars: 
     with tempfile.TemporaryDirectory(prefix="ts-sandbox-") as cwd:
         proc = subprocess.Popen(
             [sys.executable, "-I", "-m", "tradingsystem.strategy.runner"],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd,
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=_child_env(),
         )
         result: dict = {}
 
@@ -137,10 +145,11 @@ def run_signals_many(strategy: LoadedStrategy, params_list: list[Params], bars: 
         except (json.JSONDecodeError, KeyError, TypeError):
             raise SandboxError("crash", err[-2000:] or f"exit code {proc.returncode}") from None
 
-    allout = pa.ipc.open_stream(io.BytesIO(result["out"])).read_all().to_pandas()
-    outs = []
-    for run in range(len(params_list)):
-        out = allout[allout[RUN_COL] == run].drop(columns=[RUN_COL]).reset_index(drop=True)
+    buf, pos, outs = result["out"], 0, []
+    for _ in params_list:
+        (n,) = struct.unpack(">Q", buf[pos:pos + 8])
+        out = pa.ipc.open_stream(io.BytesIO(buf[pos + 8:pos + 8 + n])).read_all().to_pandas()
+        pos += 8 + n
         if {"date", "symbol"} <= set(out.columns):
             out = out.set_index(["date", "symbol"])
         outs.append(out)

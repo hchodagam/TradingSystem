@@ -14,13 +14,13 @@ import pandas as pd
 
 from tradingsystem.backtest.engine import BacktestConfig, run_backtest
 from tradingsystem.config import AppConfig, load_config
-from tradingsystem.strategy.acceptance import accept
+from tradingsystem.strategy.acceptance import accept, check_output
 from tradingsystem.strategy.sandbox import SandboxError, run_signals
 from tradingsystem.universe import Universe, load_sectors
 from tradingsystem.validate import GateResult
 from tradingsystem.validate.gate1 import gate1
 from tradingsystem.validate.gate2 import BacktestContext, gate2
-from tradingsystem.validate.gate3 import HoldoutAlreadyUsed, HoldoutLedger, gate3
+from tradingsystem.validate.gate3 import HoldoutAlreadyUsed, HoldoutDataInvalid, HoldoutLedger, gate3
 
 SYNTH_SYMBOLS = [f"S{i:02d}" for i in range(20)]
 SYNTH_END = date(2024, 6, 28)
@@ -37,6 +37,15 @@ def _print_gate(name: str, g: GateResult) -> None:
     print(f"  {'check':<26}{'value':>12}{'threshold':>12}  result")
     for c in g.checks:
         print(f"  {c.name:<26}{c.value:>12.4g}{c.threshold:>12.4g}  {'PASS' if c.passed else 'FAIL'}")
+    for n in g.notes:
+        print(f"  note: {n}")
+
+
+def _issues(report, limit: int = 20) -> str:
+    lines = "\n".join(f"  {i.kind}: {i.detail}" for i in report.issues[:limit])
+    more = f"\n  ... and {len(report.issues) - limit} more" if len(report.issues) > limit else ""
+    return lines + more + ("\n  (acknowledge checked issues in reference/data_exceptions.csv: "
+                           "symbol,date,kind,note)")
 
 
 def _setup(cfg: AppConfig, args) -> tuple:
@@ -46,13 +55,13 @@ def _setup(cfg: AppConfig, args) -> tuple:
                          drift=-0.002 if args.synthetic_edge else 0.0, planted_edge=args.synthetic_edge)
         uni = Universe([(cfg.gates.research_start, s, "add") for s in SYNTH_SYMBOLS])
         return SyntheticStore(bars, cfg.gates.research_start, cfg.gates.research_end), uni, \
-            {s: s for s in SYNTH_SYMBOLS}
+            {s: s for s in SYNTH_SYMBOLS}, None
 
     from dotenv import load_dotenv
 
-    from tradingsystem.data.checks import validate_bars
-    from tradingsystem.data.dhan import DhanAuthError, DhanClient
-    from tradingsystem.data.store import BarStore
+    from tradingsystem.data.checks import load_exceptions, validate_bars
+    from tradingsystem.data.dhan import DhanAuthError, DhanClient, load_security_overrides
+    from tradingsystem.data.store import BarStore, UnknownSymbolsError
 
     ref = Path(cfg.data.reference_dir)
     try:
@@ -62,7 +71,8 @@ def _setup(cfg: AppConfig, args) -> tuple:
     sectors = load_sectors(ref / "sectors.csv")
     load_dotenv()
     try:
-        client = DhanClient(cfg.data, os.environ["DHAN_CLIENT_ID"], os.environ["DHAN_ACCESS_TOKEN"])
+        client = DhanClient(cfg.data, os.environ["DHAN_CLIENT_ID"], os.environ["DHAN_ACCESS_TOKEN"],
+                            security_overrides=load_security_overrides(ref / "security_ids.csv"))
     except KeyError as e:
         raise _Stop(2, f"{e.args[0]} missing from .env") from e
     store = BarStore(cfg, client)
@@ -70,17 +80,24 @@ def _setup(cfg: AppConfig, args) -> tuple:
         store.refresh(uni.all_symbols(), date.today())
     except DhanAuthError as e:
         raise _Stop(2, f"Dhan: {e}") from e
-    start = max(cfg.gates.research_start, uni.first_date)
+    except UnknownSymbolsError as e:
+        raise _Stop(2, str(e)) from e
     from tradingsystem.data.adjust import load_actions
     actions_path = ref / "corporate_actions.csv"
     actions = load_actions(actions_path) if actions_path.exists() else None
+    exceptions = load_exceptions(ref / "data_exceptions.csv")
+    start = max(cfg.gates.research_start, uni.first_date)
     report = validate_bars(store.research_bars(uni.all_symbols()), uni, start, cfg.gates.research_end, actions,
-                           cfg.data.abnormal_move_pct)
+                           cfg.data.abnormal_move_pct, exceptions)
     if not report.ok:
-        lines = "\n".join(f"  {i.kind}: {i.detail}" for i in report.issues[:20])
-        more = f"\n  ... and {len(report.issues) - 20} more" if len(report.issues) > 20 else ""
-        raise _Stop(2, f"research data failed validation ({len(report.issues)} issues):\n{lines}{more}")
-    return store, uni, sectors
+        raise _Stop(2, f"research data failed validation ({len(report.issues)} issues):\n{_issues(report)}")
+
+    def validate_holdout(bars: pd.DataFrame):
+        last = bars.index.get_level_values("date").max().date()
+        return validate_bars(bars, uni, cfg.gates.holdout_start, last, actions, cfg.data.abnormal_move_pct,
+                             exceptions)
+
+    return store, uni, sectors, validate_holdout
 
 
 def evaluate(args) -> int:
@@ -88,7 +105,7 @@ def evaluate(args) -> int:
     path = Path(args.strategy)
     if not path.exists():
         raise _Stop(2, f"{path}: file not found")
-    store, uni, sectors = _setup(cfg, args)
+    store, uni, sectors, validate_holdout = _setup(cfg, args)
     bars = store.research_bars(uni.all_symbols())
 
     smoke_from = pd.Timestamp(cfg.gates.research_end - timedelta(days=730))
@@ -105,7 +122,11 @@ def evaluate(args) -> int:
         sig = run_signals(s, s.spec.defaults(), bars)
     except SandboxError as e:
         raise _Stop(2, f"signals failed on the research period: {e}") from e
-    bt = BacktestConfig(cfg.gates.research_start, cfg.gates.research_end, cfg.risk.initial_capital)
+    errs = check_output(sig, bars)
+    if errs:
+        raise _Stop(2, "signals() output is malformed on the full research period:\n"
+                    + "\n".join(f"  {e}" for e in errs))
+    bt =BacktestConfig(cfg.gates.research_start, cfg.gates.research_end, cfg.risk.initial_capital)
     result = run_backtest(sig, bars, uni, sectors, s.spec, cfg, bt)
     print(f"research backtest: {len(result.trades)} trades, final equity {result.equity.iloc[-1]:,.0f}, "
           f"kill-switch trips {result.kill_switch_trips}")
@@ -123,9 +144,11 @@ def evaluate(args) -> int:
     research_sharpe = next(c.value for c in g1.checks if c.name == "sharpe")
     ledger = HoldoutLedger(Path(args.state_dir) / "holdout_runs.json")
     try:
-        g3 = gate3(s, store, ctx, cfg, research_sharpe, True, ledger)
+        g3 = gate3(s, store, ctx, cfg, research_sharpe, True, ledger, validate=validate_holdout)
     except HoldoutAlreadyUsed as e:
         raise _Stop(2, str(e)) from e
+    except HoldoutDataInvalid as e:
+        raise _Stop(2, f"{e}:\n{_issues(e.report)}") from e
     _print_gate("Gate 3", g3)
     return 0 if g3.passed else 1
 
@@ -147,6 +170,9 @@ def main(argv: list[str] | None = None) -> int:
     except _Stop as stop:
         print(str(stop))
         return stop.code
+    except Exception as e:  # noqa: BLE001 - exit 1 is reserved for "a gate failed"
+        print(f"error: {type(e).__name__}: {e}")
+        return 2
 
 
 if __name__ == "__main__":

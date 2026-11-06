@@ -68,6 +68,8 @@ class Gate2Config(_Frozen):
     overfit_param_count: int
     overfit_dsr_min: float
     overfit_sens_min_profitable: float
+    lookahead_param_window: int
+    sandbox_chunk_size: int
 
 
 class Gate3Config(_Frozen):

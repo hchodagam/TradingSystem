@@ -18,6 +18,16 @@ def test_many_params_one_process_matches_single_runs(tmp_path, bars):
     assert not many[0].equals(many[2])
 
 
+def test_many_keeps_each_runs_own_columns_and_dtypes(tmp_path, bars):
+    # batching must not let one run's columns or dtypes leak into another's
+    body = CLEAN_BODY.replace("    return out", '    if p.n > 5:\n        out = out.drop(columns=["stop"])\n'
+                                             '        out["entry"] = out["entry"].astype(int)\n    return out')
+    s = strategy_from(tmp_path, body)
+    good, bad = run_signals_many(s, [Params(n=2), Params(n=9)], bars)
+    assert list(good.columns) == ["entry", "exit", "stop"] and good["entry"].dtype == bool
+    assert list(bad.columns) == ["entry", "exit"] and bad["entry"].dtype != bool
+
+
 def test_child_does_not_import_pydantic():
     import subprocess
     import sys
@@ -83,6 +93,19 @@ def test_runtime_layer_blocks_without_static_check(tmp_path, bars, body):
         run_signals(s, s.spec.defaults(), bars, _skip_static=True)
     assert e.value.reason == "crash"
     assert not (tmp_path / "pwned.txt").exists()
+
+
+def test_child_environment_has_no_secrets(tmp_path, bars, monkeypatch):
+    # even if a strategy reaches os (here: static check skipped), the parent's secrets are not in its env
+    monkeypatch.setenv("DHAN_ACCESS_TOKEN", "secret-token")
+    body = CLEAN_BODY.replace(
+        "    return out",
+        '    env = pd.core.common.sys.modules["os"].environ\n'
+        '    out["stop"] = float(len(env.get("DHAN_ACCESS_TOKEN", "")))\n'
+        "    return out")
+    s = strategy_from(tmp_path, body)
+    out = run_signals(s, s.spec.defaults(), bars, _skip_static=True)
+    assert (out["stop"] == 0.0).all()
 
 
 def test_print_does_not_corrupt_output(tmp_path, bars):
