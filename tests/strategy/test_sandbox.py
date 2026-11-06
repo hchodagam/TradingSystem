@@ -1,0 +1,90 @@
+import os
+
+import pandas as pd
+import pytest
+from helpers import CLEAN_BODY, small_bars, strategy_from
+
+from tradingsystem.strategy.sandbox import SandboxConfig, SandboxError, run_signals
+
+
+@pytest.fixture(scope="module")
+def bars():
+    return small_bars()
+
+
+def test_runs_clean_strategy_and_writes_nothing(tmp_path, bars):
+    s = strategy_from(tmp_path, CLEAN_BODY)
+    before = set(os.listdir(tmp_path))
+    out = run_signals(s, s.spec.defaults(), bars)
+    assert out.index.equals(bars.index)
+    assert list(out.columns) == ["entry", "exit", "stop"]
+    assert out["entry"].dtype == bool
+    assert set(os.listdir(tmp_path)) == before
+
+
+def test_static_violation_raises_without_spawning(tmp_path, bars):
+    s = strategy_from(tmp_path, "import os\n" + CLEAN_BODY)
+    with pytest.raises(SandboxError) as e:
+        run_signals(s, s.spec.defaults(), bars)
+    assert e.value.reason == "static"
+
+
+def test_timeout_kills_child(tmp_path, bars):
+    s = strategy_from(tmp_path, "def signals(bars, p):\n    while True:\n        pass\n")
+    with pytest.raises(SandboxError) as e:
+        run_signals(s, s.spec.defaults(), bars, cfg=SandboxConfig(timeout_s=5))
+    assert e.value.reason == "timeout"
+
+
+def test_memory_limit(tmp_path, bars):
+    # holds ~800 MB while working; a brief spike between 50 ms watchdog samples can slip through on
+    # Windows (POSIX has a hard RLIMIT_AS in the child)
+    s = strategy_from(tmp_path, "def signals(bars, p):\n    a = np.ones(100_000_000)\n    while True:\n"
+                                "        a = a + 1\n")
+    with pytest.raises(SandboxError) as e:
+        run_signals(s, s.spec.defaults(), bars, cfg=SandboxConfig(max_rss_mb=400))
+    assert e.value.reason == "memory"
+
+
+def test_runtime_error_is_crash(tmp_path, bars):
+    s = strategy_from(tmp_path, "def signals(bars, p):\n    return bars['nope']\n")
+    with pytest.raises(SandboxError) as e:
+        run_signals(s, s.spec.defaults(), bars)
+    assert e.value.reason == "crash" and "nope" in e.value.detail
+
+
+@pytest.mark.parametrize("body", [
+    "def signals(bars, p):\n    import os\n    return os.listdir('.')\n",
+    "def signals(bars, p):\n    open('pwned.txt', 'w').write('x')\n    return bars\n",
+    "def signals(bars, p):\n    return eval('1')\n",
+])
+def test_runtime_layer_blocks_without_static_check(tmp_path, bars, body):
+    s = strategy_from(tmp_path, body)
+    with pytest.raises(SandboxError) as e:
+        run_signals(s, s.spec.defaults(), bars, _skip_static=True)
+    assert e.value.reason == "crash"
+    assert not (tmp_path / "pwned.txt").exists()
+
+
+def test_print_does_not_corrupt_output(tmp_path, bars):
+    s = strategy_from(tmp_path, CLEAN_BODY.replace("    return out", "    print('hello')\n    return out"))
+    out = run_signals(s, s.spec.defaults(), bars)
+    assert len(out) == len(bars)
+
+
+def test_non_dataframe_is_bad_output(tmp_path, bars):
+    s = strategy_from(tmp_path, "def signals(bars, p):\n    return 42\n")
+    with pytest.raises(SandboxError) as e:
+        run_signals(s, s.spec.defaults(), bars)
+    assert e.value.reason == "bad_output"
+
+
+def test_incremental_returns_only_rows_from_k(tmp_path, bars):
+    s = strategy_from(tmp_path, CLEAN_BODY)
+    dates = bars.index.get_level_values("date").unique()
+    k = len(dates) - 10
+    out = run_signals(s, s.spec.defaults(), bars, incremental_from=k)
+    got = out.index.get_level_values("date").unique()
+    assert list(got) == list(dates[k:])
+    batch = run_signals(s, s.spec.defaults(), bars)
+    pd.testing.assert_frame_equal(out, batch.loc[out.index])

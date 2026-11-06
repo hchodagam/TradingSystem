@@ -73,7 +73,7 @@ def test_defaults_attribute_access():
 
 def test_params_missing_attribute_raises():
     with pytest.raises(AttributeError):
-        Params(a=1).b
+        _ = Params(a=1).b
 
 
 def test_extra_keys_rejected():
