@@ -38,6 +38,12 @@ def test_dp_per_scrip():
     assert c.dp == 25.0
 
 
+def test_numpy_float_price():
+    import numpy as np
+    c = day_charges([Fill("INFY", D, "BUY", 100, np.float64(1000.0))], rates)
+    assert c.total == pytest.approx(118.62)
+
+
 def test_empty_fills_cost_nothing():
     assert day_charges([], rates).total == 0
 

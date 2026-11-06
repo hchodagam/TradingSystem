@@ -34,7 +34,7 @@ class ChargeBreakdown:
 
 def _round(x: float, places: int) -> float:
     q = Decimal(1).scaleb(-places)
-    return float(Decimal(repr(x)).quantize(q, rounding=ROUND_HALF_UP))
+    return float(Decimal(repr(float(x))).quantize(q, rounding=ROUND_HALF_UP))  # float(): numpy repr is np.float64(..)
 
 
 def day_charges(fills: list[Fill], rates: CostRates) -> ChargeBreakdown:
