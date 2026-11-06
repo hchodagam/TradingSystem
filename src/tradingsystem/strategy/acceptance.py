@@ -49,11 +49,14 @@ def check_output(out: pd.DataFrame, bars: pd.DataFrame) -> list[str]:
     return errs
 
 
-def lookahead_check(s: LoadedStrategy, params: Params, bars: pd.DataFrame, window: int = 250) -> list[str]:
-    """Re-run signals() day by day over the last `window` dates; output must equal the batch run."""
+def lookahead_check(s: LoadedStrategy, params: Params, bars: pd.DataFrame, window: int = 250,
+                    batch: pd.DataFrame | None = None) -> list[str]:
+    """Re-run signals() day by day over the last `window` dates; output must equal the batch run.
+    Pass `batch` (signals on the same bars and params) to save a sandbox start."""
     dates = bars.index.get_level_values("date").unique()
     k = max(len(dates) - window, 1)
-    batch = run_signals(s, params, bars)
+    if batch is None:
+        batch = run_signals(s, params, bars)
     inc = run_signals(s, params, bars, incremental_from=k)
     expected = batch[batch.index.get_level_values("date") >= dates[k]]
     if not inc.index.equals(expected.index):
@@ -98,7 +101,7 @@ def accept(path: Path, bars: pd.DataFrame) -> AcceptanceResult:
     if errs:
         return AcceptanceResult(False, "smoke", errs, s)
     try:
-        diffs = lookahead_check(s, params, bars)
+        diffs = lookahead_check(s, params, bars, batch=out)
     except SandboxError as e:
         return AcceptanceResult(False, "lookahead", [f"{e.reason}: {e.detail}"], s)
     if diffs:

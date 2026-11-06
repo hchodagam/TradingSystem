@@ -5,17 +5,11 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from tradingsystem.strategy.params import Params
+
+__all__ = ["Params", "ParamSpec", "StrategySpec"]
+
 Number = int | float
-
-
-class Params(dict):
-    """Strategy parameters with attribute access: p.rsi_len."""
-
-    def __getattr__(self, name):
-        try:
-            return self[name]
-        except KeyError:
-            raise AttributeError(name) from None
 
 
 class ParamSpec(BaseModel):

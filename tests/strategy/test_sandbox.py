@@ -4,7 +4,26 @@ import pandas as pd
 import pytest
 from helpers import CLEAN_BODY, small_bars, strategy_from
 
-from tradingsystem.strategy.sandbox import SandboxConfig, SandboxError, run_signals
+from tradingsystem.strategy.sandbox import SandboxConfig, SandboxError, run_signals, run_signals_many
+from tradingsystem.strategy.spec import Params
+
+
+def test_many_params_one_process_matches_single_runs(tmp_path, bars):
+    s = strategy_from(tmp_path, CLEAN_BODY)
+    ps = [Params(n=2), Params(n=5), Params(n=9)]
+    many = run_signals_many(s, ps, bars)
+    assert len(many) == 3
+    for p, out in zip(ps, many, strict=True):
+        pd.testing.assert_frame_equal(out, run_signals(s, p, bars))
+    assert not many[0].equals(many[2])
+
+
+def test_child_does_not_import_pydantic():
+    import subprocess
+    import sys
+    code = "import sys, tradingsystem.strategy.params; print('pydantic' in sys.modules)"
+    out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True, check=True).stdout
+    assert out.strip() == "False"
 
 
 @pytest.fixture(scope="module")

@@ -56,12 +56,14 @@ class _Pos:
 
 
 def _by_date(df: pd.DataFrame, cols: list[str]) -> dict[pd.Timestamp, dict[str, tuple]]:
-    out: dict[pd.Timestamp, dict[str, tuple]] = {}
-    dates = df.index.get_level_values("date")
-    syms = df.index.get_level_values("symbol")
-    vals = df[cols].to_numpy()
-    for d, s, v in zip(dates, syms, vals, strict=True):
-        out.setdefault(d, {})[s] = tuple(v)
+    # plain-list iteration: iterating pandas (Arrow-backed) index values directly is ~50x slower
+    codes, uniq = pd.factorize(df.index.get_level_values("date"))
+    keys = list(uniq)
+    out: dict[pd.Timestamp, dict[str, tuple]] = {k: {} for k in keys}
+    syms = df.index.get_level_values("symbol").to_numpy(dtype=object).tolist()
+    vals = df[cols].to_numpy(dtype=float).tolist()
+    for c, s, v in zip(codes.tolist(), syms, vals, strict=True):
+        out[keys[c]][s] = tuple(v)
     return out
 
 

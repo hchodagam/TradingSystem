@@ -1,7 +1,8 @@
 """Sandbox child process. Started as: python -I -m tradingsystem.strategy.runner
 
-stdin:  4-byte big-endian header length, JSON header {code, params, incremental_from}, Arrow IPC stream of bars.
-stdout: Arrow IPC stream of the signals frame (reset_index).
+stdin:  4-byte big-endian header length, JSON header {code, params_list, incremental_from, max_rss_mb},
+        then an Arrow IPC stream of bars.
+stdout: Arrow IPC stream of all runs' signals (reset_index) with an extra int column "_run".
 stderr: on failure, a final JSON line {"reason": ..., "detail": ...}; exit code 3.
 """
 from __future__ import annotations
@@ -14,11 +15,12 @@ import sys
 import traceback
 
 ALLOWED = {"pandas", "numpy", "math"}
+RUN_COL = "_run"
 
 _SAFE_BUILTINS = [
     "abs", "all", "any", "bool", "dict", "divmod", "enumerate", "filter", "float", "frozenset", "int",
     "isinstance", "issubclass", "iter", "len", "list", "map", "max", "min", "next", "pow", "range", "repr",
-    "reversed", "round", "set", "slice", "sorted", "str", "sum", "tuple", "zip", "print", "hash",
+    "reversed", "round", "set", "slice", "sorted", "str", "sum", "tuple", "zip", "print", "hash", "ord", "chr",
     "True", "False", "None", "NotImplemented", "Ellipsis",
     "Exception", "ValueError", "KeyError", "IndexError", "TypeError", "ZeroDivisionError", "ArithmeticError",
     "RuntimeError", "StopIteration", "AttributeError", "LookupError",
@@ -60,43 +62,48 @@ def main() -> None:
         import resource
         cap = int(header["max_rss_mb"]) * 1024 * 1024 * 2
         resource.setrlimit(resource.RLIMIT_AS, (cap, cap))
-    table =pa.ipc.open_stream(io.BytesIO(raw_in.read())).read_all()
+    table = pa.ipc.open_stream(io.BytesIO(raw_in.read())).read_all()
     bars = table.to_pandas().set_index(["date", "symbol"]).sort_index()
 
-    from tradingsystem.strategy.spec import Params
+    from tradingsystem.strategy.params import Params
 
     safe = {k: getattr(builtins, k) for k in _SAFE_BUILTINS}
     safe["__import__"] = _restricted_import
-    env = {"__builtins__": safe, "__name__": "strategy"}
-    try:
-        exec(compile(header["code"], "strategy.py", "exec"), env)  # noqa: S102 - this is the sandbox
-        signals = env["signals"]
-        params = Params(header["params"])
-        k = header.get("incremental_from")
-        if k is None:
-            out = signals(bars, params)
-        else:
-            dates = bars.index.get_level_values("date").unique()
-            parts = []
-            for t in range(k, len(dates)):
-                sub = bars[bars.index.get_level_values("date") <= dates[t]]
-                res = signals(sub, params)
-                if not isinstance(res, pd.DataFrame):
-                    out = res
-                    break
-                parts.append(res[res.index.get_level_values("date") == dates[t]])
+    k = header.get("incremental_from")
+    frames = []
+    for run, raw_params in enumerate(header["params_list"]):
+        env = {"__builtins__": dict(safe), "__name__": "strategy"}  # fresh module state per run
+        try:
+            exec(compile(header["code"], "strategy.py", "exec"), env)  # noqa: S102 - this is the sandbox
+            signals = env["signals"]
+            params = Params(raw_params)
+            if k is None:
+                out = signals(bars, params)
             else:
-                out = pd.concat(parts) if parts else bars.iloc[0:0][[]]
-    except MemoryError:
-        _fail("memory", "strategy ran out of memory")
-    except BaseException:  # noqa: BLE001 - report every strategy failure to the parent
-        _fail("crash", traceback.format_exc(limit=5))
-
-    if not isinstance(out, pd.DataFrame):
-        _fail("bad_output", f"signals() must return a DataFrame, got {type(out).__name__}")
-    try:
+                dates = bars.index.get_level_values("date").unique()
+                parts = []
+                out = None
+                for t in range(k, len(dates)):
+                    sub = bars[bars.index.get_level_values("date") <= dates[t]]
+                    res = signals(sub, params)
+                    if not isinstance(res, pd.DataFrame):
+                        out = res
+                        break
+                    parts.append(res[res.index.get_level_values("date") == dates[t]])
+                if out is None:
+                    out = pd.concat(parts) if parts else bars.iloc[0:0][[]]
+        except MemoryError:
+            _fail("memory", "strategy ran out of memory")
+        except BaseException:  # noqa: BLE001 - report every strategy failure to the parent
+            _fail("crash", traceback.format_exc(limit=5))
+        if not isinstance(out, pd.DataFrame):
+            _fail("bad_output", f"signals() must return a DataFrame, got {type(out).__name__}")
         frame = out.reset_index()
-        tbl = pa.Table.from_pandas(frame, preserve_index=False)
+        frame[RUN_COL] = run
+        frames.append(frame)
+
+    try:
+        tbl = pa.Table.from_pandas(pd.concat(frames, ignore_index=True), preserve_index=False)
     except Exception as e:  # noqa: BLE001
         _fail("bad_output", f"signals() output cannot be serialised: {e}")
     with pa.ipc.new_stream(raw_out, tbl.schema) as w:

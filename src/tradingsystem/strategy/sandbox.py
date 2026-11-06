@@ -1,4 +1,10 @@
-"""Parent side of the strategy sandbox: run signals() in a low-privilege subprocess."""
+"""Parent side of the strategy sandbox: run signals() in a low-privilege subprocess.
+
+One child process runs any number of param sets (process start-up dominates: importing pandas alone
+can take seconds), so callers that need many runs should use run_signals_many.
+Limits: timeout + RSS watchdog over the child's process tree everywhere; RLIMIT_AS on POSIX (set by
+the child itself). The low-privilege user and no-network container come with Docker (Plan 4).
+"""
 from __future__ import annotations
 
 import io
@@ -17,7 +23,8 @@ import psutil
 import pyarrow as pa
 
 from tradingsystem.strategy.loader import LoadedStrategy
-from tradingsystem.strategy.spec import Params
+from tradingsystem.strategy.params import Params
+from tradingsystem.strategy.runner import RUN_COL
 from tradingsystem.strategy.static_check import static_check
 
 Reason = Literal["static", "timeout", "memory", "crash", "bad_output"]
@@ -32,16 +39,17 @@ class SandboxError(Exception):
 
 @dataclass(frozen=True)
 class SandboxConfig:
-    timeout_s: float = 120
+    timeout_s: float = 120  # per param set
     max_rss_mb: int = 2048
 
 
 DEFAULT_SANDBOX = SandboxConfig()
 
 
-def _encode(code: str, params: Params, bars: pd.DataFrame, incremental_from: int | None, max_rss_mb: int) -> bytes:
-    header = json.dumps({"code": code, "params": dict(params), "incremental_from": incremental_from,
-                         "max_rss_mb": max_rss_mb}).encode()
+def _encode(code: str, params_list: list[Params], bars: pd.DataFrame, incremental_from: int | None,
+            max_rss_mb: int) -> bytes:
+    header = json.dumps({"code": code, "params_list": [dict(p) for p in params_list],
+                         "incremental_from": incremental_from, "max_rss_mb": max_rss_mb}).encode()
     tbl = pa.Table.from_pandas(bars.reset_index(), preserve_index=False)
     sink = io.BytesIO()
     with pa.ipc.new_stream(sink, tbl.schema) as w:
@@ -76,17 +84,18 @@ def _kill_tree(ps: psutil.Process) -> None:
             pass
 
 
-def run_signals(strategy: LoadedStrategy, params: Params, bars: pd.DataFrame, *,
-                incremental_from: int | None = None, cfg: SandboxConfig = DEFAULT_SANDBOX,
-                _skip_static: bool = False) -> pd.DataFrame:
-    """Run signals() in a subprocess. Limits: timeout + RSS watchdog everywhere; RLIMIT_AS on POSIX
-    (set by the child itself). Low-privilege user and no-network container come with Docker (Plan 4)."""
+def run_signals_many(strategy: LoadedStrategy, params_list: list[Params], bars: pd.DataFrame, *,
+                     incremental_from: int | None = None, cfg: SandboxConfig = DEFAULT_SANDBOX,
+                     _skip_static: bool = False) -> list[pd.DataFrame]:
+    if not params_list:
+        return []
     if not _skip_static:
         violations = static_check(strategy.code)
         if violations:
             raise SandboxError("static", "; ".join(violations))
 
-    payload = _encode(strategy.code, params, bars, incremental_from, cfg.max_rss_mb)
+    payload = _encode(strategy.code, params_list, bars, incremental_from, cfg.max_rss_mb)
+    timeout = cfg.timeout_s * len(params_list)
     with tempfile.TemporaryDirectory(prefix="ts-sandbox-") as cwd:
         proc = subprocess.Popen(
             [sys.executable, "-I", "-m", "tradingsystem.strategy.runner"],
@@ -106,7 +115,7 @@ def run_signals(strategy: LoadedStrategy, params: Params, bars: pd.DataFrame, *,
             t.join(0.05)
             if not t.is_alive():
                 break
-            if time.monotonic() - started > cfg.timeout_s:
+            if time.monotonic() - started > timeout:
                 killed = "timeout"
             elif _tree_rss(ps) > cfg.max_rss_mb * 1024 * 1024:
                 killed = "memory"
@@ -116,7 +125,7 @@ def run_signals(strategy: LoadedStrategy, params: Params, bars: pd.DataFrame, *,
                 break
 
     if killed == "timeout":
-        raise SandboxError("timeout", f"signals() exceeded {cfg.timeout_s}s")
+        raise SandboxError("timeout", f"signals() exceeded {cfg.timeout_s}s per param set")
     if killed == "memory":
         raise SandboxError("memory", f"signals() exceeded {cfg.max_rss_mb} MB")
     if proc.returncode != 0:
@@ -128,7 +137,18 @@ def run_signals(strategy: LoadedStrategy, params: Params, bars: pd.DataFrame, *,
         except (json.JSONDecodeError, KeyError, TypeError):
             raise SandboxError("crash", err[-2000:] or f"exit code {proc.returncode}") from None
 
-    out = pa.ipc.open_stream(io.BytesIO(result["out"])).read_all().to_pandas()
-    if {"date", "symbol"} <= set(out.columns):
-        out = out.set_index(["date", "symbol"])
-    return out
+    allout = pa.ipc.open_stream(io.BytesIO(result["out"])).read_all().to_pandas()
+    outs = []
+    for run in range(len(params_list)):
+        out = allout[allout[RUN_COL] == run].drop(columns=[RUN_COL]).reset_index(drop=True)
+        if {"date", "symbol"} <= set(out.columns):
+            out = out.set_index(["date", "symbol"])
+        outs.append(out)
+    return outs
+
+
+def run_signals(strategy: LoadedStrategy, params: Params, bars: pd.DataFrame, *,
+                incremental_from: int | None = None, cfg: SandboxConfig = DEFAULT_SANDBOX,
+                _skip_static: bool = False) -> pd.DataFrame:
+    return run_signals_many(strategy, [params], bars, incremental_from=incremental_from, cfg=cfg,
+                            _skip_static=_skip_static)[0]
