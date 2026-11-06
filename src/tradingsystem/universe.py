@@ -40,7 +40,7 @@ class Universe:
     def members(self, d: date) -> frozenset[str]:
         if isinstance(d, datetime):  # includes pd.Timestamp
             d = d.date()
-        i =bisect.bisect_right(self._dates, d) - 1
+        i = bisect.bisect_right(self._dates, d) - 1
         if i < 0:
             raise ValueError(f"{d} is before the first universe snapshot {self._dates[0]}")
         return self._snapshots[i]
