@@ -14,6 +14,7 @@ dependencies = [
     "scipy>=1.13",
     "python-dotenv>=1.0",
     "psutil>=5.9",
+    "ruff>=0.5",  # runtime: the acceptance pipeline lints generated strategies
 ]
 
 [project.scripts]
@@ -27,11 +28,14 @@ build-backend = "hatchling.build"
 packages = ["src/tradingsystem"]
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.5"]
+dev = ["pytest>=8"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
 
 [tool.ruff]
-line-length = 110
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "UP"]
