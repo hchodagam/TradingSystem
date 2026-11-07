@@ -12,7 +12,8 @@ Build an AI-assisted research and paper-trading engine for swing/positional trad
 
 **v1 is successful when:**
 - A strategy brief entered in the dashboard flows through research → spec → code → review → Gates 1–3 → approval → paper trading with no manual steps other than the two approvals (shortlist, approve-for-paper).
-- The reference strategy (50/200 SMA crossover) passes the full pipeline, and its 60-day paper replay matches a backtest of the same window.
+- The reference strategy (50/200 SMA crossover) runs through the full pipeline on real data and gets a gate verdict. It is *expected* to fail Gate 1: the 2026-11-07 run scored Sharpe 0.75, drawdown 25.8%, and did not beat Nifty 100 buy-and-hold (see `docs/superpowers/plans/plan1-acceptance.md`). Its 60-day paper replay, run without gate approval for this check, matches a backtest of the same window.
+- A strategy exploiting a planted edge in synthetic data passes Gates 1–2. This is the proof that a good strategy can get through the gates.
 - A random-entry strategy is rejected by Gates 1–2; a deliberately look-ahead-biased strategy is rejected by the look-ahead check.
 - Cost model matches real Dhan contract notes to the rupee.
 
@@ -267,7 +268,7 @@ Single-user login.
 - **Risk:** sizing, caps, skip rules, kill-switch unit tests.
 - **Sandbox:** network access, file writes and blocked imports must all fail.
 - **Agents:** recorded responses as fixtures, including malformed outputs for retry/failure paths; optional live smoke test per model.
-- **End to end:** 50/200 SMA crossover through the full pipeline; 60-day replay of paper trading matches a backtest of the same window.
+- **End to end:** the 50/200 SMA crossover runs through the full pipeline on real data and is rejected at Gate 1 (an expected failure). A 60-day replay of paper trading, run without gate approval, matches a backtest of the same window. A planted-edge strategy passes Gates 1–2 on synthetic data.
 - Development is test-first for all deterministic units.
 
 ---

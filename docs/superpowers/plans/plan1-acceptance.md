@@ -14,7 +14,7 @@ Research backtest: 102 trades, final equity ₹3,29,992 from ₹1,00,000 (about 
 | profit_factor | 2.107 | 1.3 | PASS |
 | beats_benchmark | -0.106 (Nifty 100 buy-and-hold Sharpe ≈ 0.856) | 0 | FAIL |
 
-**What this means:** the pipeline works on real data, but the spec's success criterion "the reference strategy passes the full pipeline" does not hold for a plain 50/200 crossover. It made money (profit factor 2.1), but with a lower Sharpe than simply holding the Nifty 100 and a drawdown above the 20% limit. The thresholds were not changed. The owner decides whether to keep the criterion, change the reference strategy, or accept "fails Gate 1 on its merits" as the expected result.
+**What this means:** the pipeline works on real data, but the spec's success criterion "the reference strategy passes the full pipeline" does not hold for a plain 50/200 crossover. It made money (profit factor 2.1), but with a lower Sharpe than simply holding the Nifty 100 and a drawdown above the 20% limit. The thresholds were not changed. **Owner decision (2026-11-07): expected failure.** The spec's success criteria now read "runs through the full pipeline and is expected to fail Gate 1". The planted-edge synthetic strategy is the proof that a good strategy can pass. Plan 3's 60-day paper-replay check runs the SMA crossover without gate approval.
 
 ### Data the run used
 
