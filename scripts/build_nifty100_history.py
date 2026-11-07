@@ -1,4 +1,5 @@
-﻿"""Rebuild point-in-time Nifty 100 membership (reference/nifty100_changes.csv) backwards from today's constituents and NSE notices.
+﻿# ruff: noqa: E501  (the event table and docstring lines are long by design)
+"""Rebuild point-in-time Nifty 100 membership (reference/nifty100_changes.csv) backwards from today's constituents and NSE notices.
 
 Each event: (effective date, notice, [excluded], [included]) in the notice's own symbols. Symbols are mapped to
 today's NSE symbol via NSE's symbolchange.csv. Walking newest -> oldest, an event's included symbols must be members
@@ -135,7 +136,7 @@ if problems and "--force" not in sys.argv:
     sys.exit(1)
 
 rows = [(START.isoformat(), s, "add") for s in sorted(members)]
-for eff, notice, exc, inc in sorted(E, key=lambda e: e[0]):
+for eff, _notice, exc, inc in sorted(E, key=lambda e: e[0]):
     rows += [(eff, current(s), "remove") for s in exc.split()]
     rows += [(eff, current(s), "add") for s in inc.split()]
 with open("reference/nifty100_changes.csv", "w", newline="", encoding="utf-8") as f:
@@ -143,7 +144,7 @@ with open("reference/nifty100_changes.csv", "w", newline="", encoding="utf-8") a
     w.writerow(["date", "symbol", "action"])
     w.writerows(rows)
 counts = defaultdict(int)
-for eff, n in history:
+for _eff, n in history:
     counts[n] += 1
 print("wrote", len(rows), "rows; member-count histogram after events:", dict(counts))
 print("all symbols ever:", len({r[1] for r in rows}))
