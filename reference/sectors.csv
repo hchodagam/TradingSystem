@@ -1,101 +1,203 @@
-symbol,sector
-ABB,Capital Goods
-ADANIENSOL,Power
-ADANIENT,Metals & Mining
-ADANIGREEN,Power
-ADANIPORTS,Services
-ADANIPOWER,Power
-AMBUJACEM,Construction Materials
-APOLLOHOSP,Healthcare
-ASIANPAINT,Consumer Durables
-AXISBANK,Financial Services
-BAJAJ-AUTO,Automobile and Auto Components
-BAJAJFINSV,Financial Services
-BAJAJHLDNG,Financial Services
-BAJFINANCE,Financial Services
-BANKBARODA,Financial Services
-BEL,Capital Goods
-BHARTIARTL,Telecommunication
-BOSCHLTD,Automobile and Auto Components
-BPCL,Oil Gas & Consumable Fuels
-BRITANNIA,Fast Moving Consumer Goods
-BSE,Financial Services
-CANBK,Financial Services
-CGPOWER,Capital Goods
-CHOLAFIN,Financial Services
-CIPLA,Healthcare
-COALINDIA,Oil Gas & Consumable Fuels
-CUMMINSIND,Capital Goods
-DIVISLAB,Healthcare
-DLF,Realty
-DMART,Consumer Services
-DRREDDY,Healthcare
-EICHERMOT,Automobile and Auto Components
-ENRIN,Capital Goods
-ETERNAL,Consumer Services
-GAIL,Oil Gas & Consumable Fuels
-GODREJCP,Fast Moving Consumer Goods
-GRASIM,Construction Materials
-HAL,Capital Goods
-HCLTECH,Information Technology
-HDFCAMC,Financial Services
-HDFCBANK,Financial Services
-HDFCLIFE,Financial Services
-HINDALCO,Metals & Mining
-HINDUNILVR,Fast Moving Consumer Goods
-HINDZINC,Metals & Mining
-HYUNDAI,Automobile and Auto Components
-ICICIBANK,Financial Services
-IDEA,Telecommunication
-INDIGO,Services
-INFY,Information Technology
-IOC,Oil Gas & Consumable Fuels
-IRFC,Financial Services
-ITC,Fast Moving Consumer Goods
-JINDALSTEL,Metals & Mining
-JIOFIN,Financial Services
-JSWSTEEL,Metals & Mining
-KOTAKBANK,Financial Services
-LT,Construction
-LTM,Information Technology
-M&M,Automobile and Auto Components
-MARUTI,Automobile and Auto Components
-MAXHEALTH,Healthcare
-MAZDOCK,Capital Goods
-MOTHERSON,Automobile and Auto Components
-MUTHOOTFIN,Financial Services
-NESTLEIND,Fast Moving Consumer Goods
-NTPC,Power
-ONGC,Oil Gas & Consumable Fuels
-PFC,Financial Services
-PIDILITIND,Chemicals
-PNB,Financial Services
-POLYCAB,Capital Goods
-POWERGRID,Power
-POWERINDIA,Capital Goods
-RELIANCE,Oil Gas & Consumable Fuels
-SBILIFE,Financial Services
-SBIN,Financial Services
-SHRIRAMFIN,Financial Services
-SIEMENS,Capital Goods
-SOLARINDS,Chemicals
-SUNPHARMA,Healthcare
-TATACAP,Financial Services
-TATACONSUM,Fast Moving Consumer Goods
-TATAPOWER,Power
-TATASTEEL,Metals & Mining
-TCS,Information Technology
-TECHM,Information Technology
-TITAN,Consumer Durables
-TMCV,Capital Goods
-TMPV,Automobile and Auto Components
-TORNTPHARM,Healthcare
-TRENT,Consumer Services
-TVSMOTOR,Automobile and Auto Components
-ULTRACEMCO,Construction Materials
-UNIONBANK,Financial Services
-VAML,Metals & Mining
-VBL,Fast Moving Consumer Goods
-VEDL,Metals & Mining
-WIPRO,Information Technology
-ZYDUSLIFE,Healthcare
+symbol,sector,source
+ABB,Capital Goods,nifty100
+ABBOTINDIA,Healthcare,totalmarket
+ABCAPITAL,Financial Services,totalmarket
+ABIRLANUVO,Diversified,manual
+ACC,Construction Materials,totalmarket
+ADANIENSOL,Power,nifty100
+ADANIENT,Metals & Mining,nifty100
+ADANIGREEN,Power,nifty100
+ADANIPORTS,Services,nifty100
+ADANIPOWER,Power,nifty100
+ALKEM,Healthcare,totalmarket
+AMBUJACEM,Construction Materials,nifty100
+ANDHRABANK,Financial Services,manual
+APOLLOHOSP,Healthcare,nifty100
+ASHOKLEY,Capital Goods,totalmarket
+ASIANPAINT,Consumer Durables,nifty100
+ATGL,Oil Gas & Consumable Fuels,totalmarket
+AUROPHARMA,Healthcare,totalmarket
+AWL,Fast Moving Consumer Goods,totalmarket
+AXISBANK,Financial Services,nifty100
+BAJAJ-AUTO,Automobile and Auto Components,nifty100
+BAJAJFINSV,Financial Services,nifty100
+BAJAJHFL,Financial Services,totalmarket
+BAJAJHLDNG,Financial Services,nifty100
+BAJFINANCE,Financial Services,nifty100
+BANDHANBNK,Financial Services,totalmarket
+BANKBARODA,Financial Services,nifty100
+BANKINDIA,Financial Services,totalmarket
+BEL,Capital Goods,nifty100
+BERGEPAINT,Consumer Durables,totalmarket
+BHARATFORG,Automobile and Auto Components,totalmarket
+BHARTIARTL,Telecommunication,nifty100
+BHEL,Capital Goods,totalmarket
+BIOCON,Healthcare,totalmarket
+BOSCHLTD,Automobile and Auto Components,nifty100
+BPCL,Oil Gas & Consumable Fuels,nifty100
+BRITANNIA,Fast Moving Consumer Goods,nifty100
+BSE,Financial Services,nifty100
+CAIRN,Oil Gas & Consumable Fuels,manual
+CANBK,Financial Services,nifty100
+CASTROLIND,Oil Gas & Consumable Fuels,totalmarket
+CGPOWER,Capital Goods,nifty100
+CHOLAFIN,Financial Services,nifty100
+CIPLA,Healthcare,nifty100
+COALINDIA,Oil Gas & Consumable Fuels,nifty100
+COLPAL,Fast Moving Consumer Goods,totalmarket
+CONCOR,Services,totalmarket
+CUMMINSIND,Capital Goods,nifty100
+DABUR,Fast Moving Consumer Goods,totalmarket
+DIVISLAB,Healthcare,nifty100
+DLF,Realty,nifty100
+DMART,Consumer Services,nifty100
+DRREDDY,Healthcare,nifty100
+EICHERMOT,Automobile and Auto Components,nifty100
+EMAMILTD,Fast Moving Consumer Goods,totalmarket
+ENRIN,Capital Goods,nifty100
+ETERNAL,Consumer Services,nifty100
+EXIDEIND,Automobile and Auto Components,totalmarket
+FEDERALBNK,Financial Services,totalmarket
+GAIL,Oil Gas & Consumable Fuels,nifty100
+GICRE,Financial Services,totalmarket
+GLAND,Healthcare,totalmarket
+GLAXO,Healthcare,totalmarket
+GLENMARK,Healthcare,totalmarket
+GMRAIRPORT,Services,totalmarket
+GODREJCP,Fast Moving Consumer Goods,nifty100
+GRASIM,Construction Materials,nifty100
+GSKCONS,Fast Moving Consumer Goods,manual
+HAL,Capital Goods,nifty100
+HAVELLS,Consumer Durables,totalmarket
+HCLTECH,Information Technology,nifty100
+HDFC,Financial Services,manual
+HDFCAMC,Financial Services,nifty100
+HDFCBANK,Financial Services,nifty100
+HDFCLIFE,Financial Services,nifty100
+HDIL,Realty,manual
+HEROMOTOCO,Automobile and Auto Components,totalmarket
+HINDALCO,Metals & Mining,nifty100
+HINDPETRO,Oil Gas & Consumable Fuels,totalmarket
+HINDUNILVR,Fast Moving Consumer Goods,nifty100
+HINDZINC,Metals & Mining,nifty100
+HYUNDAI,Automobile and Auto Components,nifty100
+ICICIBANK,Financial Services,nifty100
+ICICIGI,Financial Services,totalmarket
+ICICILIFE,Financial Services,totalmarket
+IDBI,Financial Services,totalmarket
+IDEA,Telecommunication,nifty100
+IDFC,Financial Services,manual
+IFCI,Financial Services,totalmarket
+IGL,Oil Gas & Consumable Fuels,totalmarket
+INDHOTEL,Consumer Services,totalmarket
+INDIGO,Services,nifty100
+INDUSINDBK,Financial Services,totalmarket
+INDUSTOWER,Telecommunication,totalmarket
+INFY,Information Technology,nifty100
+INGVYSYABK,Financial Services,manual
+IOB,Financial Services,totalmarket
+IOC,Oil Gas & Consumable Fuels,nifty100
+IRCTC,Consumer Services,totalmarket
+IRFC,Financial Services,nifty100
+ITC,Fast Moving Consumer Goods,nifty100
+ITCHOTELS,Consumer Services,totalmarket
+JINDALSTEL,Metals & Mining,nifty100
+JIOFIN,Financial Services,nifty100
+JPASSOCIAT,Construction,manual
+JSWENERGY,Power,totalmarket
+JSWSTEEL,Metals & Mining,nifty100
+JUBLFOOD,Consumer Services,totalmarket
+KOTAKBANK,Financial Services,nifty100
+KWIL,Fast Moving Consumer Goods,totalmarket
+LICHSGFIN,Financial Services,totalmarket
+LICI,Financial Services,totalmarket
+LODHA,Realty,totalmarket
+LT,Construction,nifty100
+LTF,Financial Services,totalmarket
+LTM,Information Technology,nifty100
+LUPIN,Healthcare,totalmarket
+M&M,Automobile and Auto Components,nifty100
+M&MFIN,Financial Services,totalmarket
+MARICO,Fast Moving Consumer Goods,totalmarket
+MARUTI,Automobile and Auto Components,nifty100
+MAXHEALTH,Healthcare,nifty100
+MAZDOCK,Capital Goods,nifty100
+MINDTREE,Information Technology,manual
+MOTHERSON,Automobile and Auto Components,nifty100
+MPHASIS,Information Technology,totalmarket
+MRF,Automobile and Auto Components,totalmarket
+MUTHOOTFIN,Financial Services,nifty100
+NAUKRI,Consumer Services,totalmarket
+NESTLEIND,Fast Moving Consumer Goods,nifty100
+NHPC,Power,totalmarket
+NIACL,Financial Services,totalmarket
+NMDC,Metals & Mining,totalmarket
+NTPC,Power,nifty100
+NYKAA,Consumer Services,totalmarket
+OFSS,Information Technology,totalmarket
+OIL,Oil Gas & Consumable Fuels,totalmarket
+ONGC,Oil Gas & Consumable Fuels,nifty100
+PAGEIND,Textiles,totalmarket
+PAYTM,Financial Services,totalmarket
+PEL,Financial Services,manual
+PETRONET,Oil Gas & Consumable Fuels,totalmarket
+PFC,Financial Services,nifty100
+PGHH,Fast Moving Consumer Goods,manual
+PIDILITIND,Chemicals,nifty100
+PIIND,Chemicals,totalmarket
+PNB,Financial Services,nifty100
+POLYCAB,Capital Goods,nifty100
+POWERGRID,Power,nifty100
+POWERINDIA,Capital Goods,nifty100
+RANBAXY,Healthcare,manual
+RCOM,Telecommunication,manual
+RECLTD,Financial Services,totalmarket
+RELCAPITAL,Financial Services,manual
+RELIANCE,Oil Gas & Consumable Fuels,nifty100
+RELINFRA,Power,manual
+RPOWER,Power,totalmarket
+SAIL,Metals & Mining,totalmarket
+SAMMAANCAP,Financial Services,totalmarket
+SBICARD,Financial Services,totalmarket
+SBILIFE,Financial Services,nifty100
+SBIN,Financial Services,nifty100
+SHREECEM,Construction Materials,totalmarket
+SHRIRAMFIN,Financial Services,nifty100
+SIEMENS,Capital Goods,nifty100
+SOLARINDS,Chemicals,nifty100
+SRF,Chemicals,totalmarket
+STER,Metals & Mining,manual
+SUNDARMFIN,Financial Services,totalmarket
+SUNPHARMA,Healthcare,nifty100
+SUNTV,Media Entertainment & Publication,totalmarket
+SWIGGY,Consumer Services,totalmarket
+TATACAP,Financial Services,nifty100
+TATACHEM,Chemicals,totalmarket
+TATACONSUM,Fast Moving Consumer Goods,nifty100
+TATAMTRDVR,Automobile and Auto Components,manual
+TATAPOWER,Power,nifty100
+TATASTEEL,Metals & Mining,nifty100
+TCS,Information Technology,nifty100
+TECHM,Information Technology,nifty100
+TITAN,Consumer Durables,nifty100
+TMCV,Capital Goods,nifty100
+TMPV,Automobile and Auto Components,nifty100
+TORNTPHARM,Healthcare,nifty100
+TORNTPOWER,Power,totalmarket
+TRENT,Consumer Services,nifty100
+TVSMOTOR,Automobile and Auto Components,nifty100
+UBL,Fast Moving Consumer Goods,totalmarket
+ULTRACEMCO,Construction Materials,nifty100
+UNIONBANK,Financial Services,nifty100
+UNITDSPR,Fast Moving Consumer Goods,totalmarket
+UPL,Chemicals,totalmarket
+VAML,Metals & Mining,nifty100
+VBL,Fast Moving Consumer Goods,nifty100
+VEDL,Metals & Mining,nifty100
+VEDPOWER,Power,totalmarket
+VISL,Metals & Mining,totalmarket
+VOGL,Oil Gas & Consumable Fuels,totalmarket
+WIPRO,Information Technology,nifty100
+YESBANK,Financial Services,totalmarket
+ZEEL,Media Entertainment & Publication,totalmarket
+ZYDUSLIFE,Healthcare,nifty100

@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Callable
 
 import httpx
 import pandas as pd

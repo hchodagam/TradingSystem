@@ -79,7 +79,7 @@ def test_chunks_long_range():
     _client(handler).daily("INFY", date(2012, 1, 1), date(2022, 12, 31))
     assert len(seen) == 3
     assert seen[0]["fromDate"] == "2012-01-01"
-    for a, b in zip(seen, seen[1:]):
+    for a, b in zip(seen, seen[1:], strict=False):
         assert a["toDate"] == b["fromDate"]  # toDate is exclusive: chunks are contiguous
 
 

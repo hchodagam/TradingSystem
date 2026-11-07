@@ -48,6 +48,22 @@ def _issues(report, limit: int = 20) -> str:
                            "symbol,date,kind,note)")
 
 
+class _SymbolStore:
+    """BarStore restricted to the symbols that have data (see data_symbols); same read interface."""
+
+    def __init__(self, store, symbols: list[str]):
+        self._store, self._symbols = store, symbols
+
+    def research_bars(self, symbols):
+        return self._store.research_bars([s for s in symbols if s in set(self._symbols)])
+
+    def holdout_bars(self, symbols):
+        return self._store.holdout_bars([s for s in symbols if s in set(self._symbols)])
+
+    def benchmark(self, start, end):
+        return self._store.benchmark(start, end)
+
+
 def _setup(cfg: AppConfig, args) -> tuple:
     if args.synthetic_seed is not None:
         from tradingsystem.synthetic import SyntheticStore, make_bars
@@ -59,7 +75,7 @@ def _setup(cfg: AppConfig, args) -> tuple:
 
     from dotenv import load_dotenv
 
-    from tradingsystem.data.checks import load_exceptions, validate_bars
+    from tradingsystem.data.checks import data_symbols, load_exceptions, validate_bars
     from tradingsystem.data.dhan import DhanAuthError, DhanClient, load_security_overrides
     from tradingsystem.data.store import BarStore, UnknownSymbolsError
 
@@ -76,8 +92,10 @@ def _setup(cfg: AppConfig, args) -> tuple:
     except KeyError as e:
         raise _Stop(2, f"{e.args[0]} missing from .env") from e
     store = BarStore(cfg, client)
+    exceptions = load_exceptions(ref / "data_exceptions.csv")
+    symbols = data_symbols(uni, exceptions)
     try:
-        store.refresh(uni.all_symbols(), date.today())
+        store.refresh(symbols, date.today())
     except DhanAuthError as e:
         raise _Stop(2, f"Dhan: {e}") from e
     except UnknownSymbolsError as e:
@@ -85,9 +103,8 @@ def _setup(cfg: AppConfig, args) -> tuple:
     from tradingsystem.data.adjust import load_actions
     actions_path = ref / "corporate_actions.csv"
     actions = load_actions(actions_path) if actions_path.exists() else None
-    exceptions = load_exceptions(ref / "data_exceptions.csv")
     start = max(cfg.gates.research_start, uni.first_date)
-    report = validate_bars(store.research_bars(uni.all_symbols()), uni, start, cfg.gates.research_end, actions,
+    report = validate_bars(store.research_bars(symbols), uni, start, cfg.gates.research_end, actions,
                            cfg.data.abnormal_move_pct, exceptions)
     if not report.ok:
         raise _Stop(2, f"research data failed validation ({len(report.issues)} issues):\n{_issues(report)}")
@@ -97,7 +114,7 @@ def _setup(cfg: AppConfig, args) -> tuple:
         return validate_bars(bars, uni, cfg.gates.holdout_start, last, actions, cfg.data.abnormal_move_pct,
                              exceptions)
 
-    return store, uni, sectors, validate_holdout
+    return _SymbolStore(store, symbols), uni, sectors, validate_holdout
 
 
 def evaluate(args) -> int:

@@ -64,7 +64,8 @@ def test_abnormal_move():
 
 def test_move_on_ex_date_not_flagged():
     b = clean_bars()
-    after = (b.index.get_level_values("date") >= pd.Timestamp("2024-01-04")) & (b.index.get_level_values("symbol") == "A")
+    dates, syms = b.index.get_level_values("date"), b.index.get_level_values("symbol")
+    after = (dates >= pd.Timestamp("2024-01-04")) & (syms == "A")
     b.loc[after, ["open", "high", "low", "close"]] = [75.0, 77.0, 74.0, 75.0]
     actions = pd.DataFrame({"symbol": ["A"], "ex_date": [pd.Timestamp("2024-01-04")], "factor": [1.0]})
     assert "abnormal_move" not in kinds(run(b, actions))
@@ -81,6 +82,23 @@ def test_acknowledged_exceptions_are_suppressed(tmp_path):
     # A's next-day move back down is still flagged: only the acknowledged (symbol, date, kind) is suppressed
     assert {(i.kind, i.symbol, i.date) for i in r.issues} == {
         ("abnormal_move", "A", pd.Timestamp("2024-01-05"))}
+
+
+def test_exception_with_star_date_covers_every_date(tmp_path):
+    # a delisted former member with no data at all is acknowledged once, not once per day
+    from tradingsystem.data.checks import load_exceptions
+    b = clean_bars().drop("B", level="symbol")
+    p = tmp_path / "data_exceptions.csv"
+    p.write_text("symbol,date,kind,note\nB,*,missing_symbol,delisted; no Dhan data\n")
+    r = validate_bars(b, U, START, END, NO_ACTIONS, abnormal_move_pct=0.20, exceptions=load_exceptions(p))
+    assert r.ok, r.issues
+
+
+def test_data_symbols_skips_acknowledged_no_data_symbols():
+    from tradingsystem.data.checks import ALL_DATES, data_symbols
+    exc = {("B", ALL_DATES, "missing_symbol"), ("A", pd.Timestamp("2024-01-03"), "missing_symbol")}
+    assert data_symbols(U, exc) == ["A"]
+    assert data_symbols(U, set()) == ["A", "B"]
 
 
 def test_issue_detail_is_human_readable():

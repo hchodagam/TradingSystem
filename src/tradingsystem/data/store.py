@@ -79,6 +79,17 @@ class BarStore:
         p = Path(self.cfg.data.reference_dir) / "corporate_actions.csv"
         return load_actions(p) if p.exists() else pd.DataFrame(columns=["symbol", "ex_date", "factor"])
 
+    def _bar_fixes(self) -> set[tuple[pd.Timestamp, str]]:
+        """reference/bar_fixes.csv: symbol,date,action,note - owner-reviewed bad bars. Only action 'drop'."""
+        p = Path(self.cfg.data.reference_dir) / "bar_fixes.csv"
+        if not p.exists():
+            return set()
+        df = pd.read_csv(p, dtype=str, keep_default_na=False)
+        bad = df[df["action"].str.strip() != "drop"]
+        if len(bad):
+            raise ValueError(f"bar_fixes.csv: unsupported action(s) {sorted(set(bad['action']))}; only 'drop'")
+        return {(pd.Timestamp(r.date), r.symbol.strip()) for r in df.itertuples(index=False)}
+
     def _bars(self, symbols, start: date, end: date | None) -> pd.DataFrame:
         frames = []
         for s in sorted(set(symbols)):
@@ -92,6 +103,9 @@ class BarStore:
         if end is not None:
             out = out[out["date"] <= pd.Timestamp(end)]
         out = out.set_index(["date", "symbol"]).sort_index()[BAR_COLUMNS]
+        drops = self._bar_fixes()
+        if drops:
+            out = out[~out.index.isin(list(drops))]
         if not self.cfg.data.prices_adjusted_by_dhan:
             out = adjust(out, self._actions())
         return out

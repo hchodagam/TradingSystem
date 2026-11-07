@@ -1,0 +1,15 @@
+symbol,date,kind,note
+ABIRLANUVO,*,missing_symbol,Merged into Grasim 2017; delisted - Dhan has no data (not in scrip master)
+ANDHRABANK,*,missing_symbol,Merged into Union Bank 2020; delisted - Dhan has no data
+CAIRN,*,missing_symbol,Merged into Vedanta 2017; delisted - Dhan has no data
+GSKCONS,*,missing_symbol,Merged into Hindustan Unilever 2020; delisted - Dhan has no data
+HDFC,*,missing_symbol,Merged into HDFC Bank 2023; delisted - Dhan has no data
+IDFC,*,missing_symbol,Merged into IDFC First Bank 2024; delisted - Dhan has no data
+INGVYSYABK,*,missing_symbol,Merged into Kotak Mahindra Bank 2015; delisted - Dhan has no data
+JPASSOCIAT,*,missing_symbol,Not in Dhan scrip master - no data
+MINDTREE,*,missing_symbol,Merged into LTIMindtree 2022; delisted - Dhan has no data
+PEL,*,missing_symbol,Piramal Enterprises merged into Piramal Finance; old symbol not in Dhan scrip master
+RANBAXY,*,missing_symbol,Merged into Sun Pharma 2015; delisted - Dhan has no data
+RELCAPITAL,*,missing_symbol,Delisted (insolvency resolution) - Dhan has no data
+STER,*,missing_symbol,Sterlite Industries merged into Sesa Goa 2013; delisted - Dhan has no data
+TATAMTRDVR,*,missing_symbol,Tata Motors DVR shares cancelled 2024 - Dhan has no data

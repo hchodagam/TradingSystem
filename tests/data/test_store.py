@@ -95,6 +95,25 @@ def test_refresh_reports_all_unknown_symbols(cfg):
     assert len(store.research_bars(["A"])) > 0
 
 
+def test_bar_fixes_drop_listed_bars(cfg):
+    store = BarStore(cfg, FakeClient())
+    store.refresh(["A", "B"], date(2022, 12, 31), include_benchmark=False)
+    (Path(cfg.data.reference_dir) / "bar_fixes.csv").write_text(
+        "symbol,date,action,note\nA,2022-11-02,drop,stray bar at wrong price basis\n")
+    bars = store.research_bars(["A", "B"])
+    assert (pd.Timestamp("2022-11-02"), "A") not in bars.index
+    assert (pd.Timestamp("2022-11-02"), "B") in bars.index
+    assert (pd.Timestamp("2022-11-03"), "A") in bars.index
+
+
+def test_bar_fixes_unknown_action_rejected(cfg):
+    store = BarStore(cfg, FakeClient())
+    store.refresh(["A"], date(2022, 12, 31), include_benchmark=False)
+    (Path(cfg.data.reference_dir) / "bar_fixes.csv").write_text("symbol,date,action,note\nA,2022-11-02,shift,x\n")
+    with pytest.raises(ValueError, match="action"):
+        store.research_bars(["A"])
+
+
 def test_missing_symbol_raises(cfg):
     with pytest.raises(FileNotFoundError):
         BarStore(cfg, None).research_bars(["ZZZ"])

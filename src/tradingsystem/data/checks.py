@@ -28,16 +28,30 @@ class ValidationReport:
     issues: list[Issue] = field(default_factory=list)
 
 
-Exceptions = set[tuple[str, pd.Timestamp, str]]
+ALL_DATES = "*"
+Exceptions = set[tuple[str, pd.Timestamp | str, str]]
 
 
 def load_exceptions(path) -> Exceptions:
-    """reference/data_exceptions.csv: symbol,date,kind[,note] - issues the owner has checked and accepted."""
+    """reference/data_exceptions.csv: symbol,date,kind[,note] - issues the owner has checked and accepted.
+    date may be '*' to acknowledge that kind of issue for the symbol on every date (e.g. a delisted former
+    member with no data at all)."""
     from pathlib import Path
     if not Path(path).exists():
         return set()
     df = pd.read_csv(path, dtype=str, keep_default_na=False)
-    return {(r.symbol.strip(), pd.Timestamp(r.date), r.kind.strip()) for r in df.itertuples(index=False)}
+    out: Exceptions = set()
+    for r in df.itertuples(index=False):
+        d = r.date.strip()
+        out.add((r.symbol.strip(), ALL_DATES if d == ALL_DATES else pd.Timestamp(d), r.kind.strip()))
+    return out
+
+
+def data_symbols(universe: Universe, exceptions: Exceptions) -> list[str]:
+    """Symbols to fetch and load: every symbol ever in the universe, minus those acknowledged as having no data
+    at all (symbol,*,missing_symbol). Validation still reports - and the exception still covers - their gaps."""
+    no_data = {s for s, d, k in exceptions if d == ALL_DATES and k == "missing_symbol"}
+    return sorted(set(universe.all_symbols()) - no_data)
 
 
 def validate_bars(bars: pd.DataFrame, universe: Universe, start: date, end: date, actions: pd.DataFrame,
@@ -45,7 +59,8 @@ def validate_bars(bars: pd.DataFrame, universe: Universe, start: date, end: date
     report = _validate(bars, universe, start, end, actions, abnormal_move_pct)
     if not exceptions:
         return report
-    kept = [i for i in report.issues if (i.symbol, i.date, i.kind) not in exceptions]
+    kept = [i for i in report.issues
+            if (i.symbol, i.date, i.kind) not in exceptions and (i.symbol, ALL_DATES, i.kind) not in exceptions]
     return ValidationReport(ok=not kept, issues=kept)
 
 
@@ -74,7 +89,8 @@ def _validate(bars: pd.DataFrame, universe: Universe, start: date, end: date, ac
     for (d, s) in in_range.index[invalid & ~nonpos]:
         r = in_range.loc[(d, s)]
         issues.append(Issue("ohlc_invalid", s, d,
-                            f"{s} on {d.date()}: O={r.open} H={r.high} L={r.low} C={r.close} is not low<=open,close<=high"))
+                            f"{s} on {d.date()}: O={r.open} H={r.high} L={r.low} C={r.close} "
+                            "is not low<=open,close<=high"))
 
     ex = set()
     if actions is not None and len(actions):
