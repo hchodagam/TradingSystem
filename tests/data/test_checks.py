@@ -94,6 +94,14 @@ def test_exception_with_star_date_covers_every_date(tmp_path):
     assert r.ok, r.issues
 
 
+def test_missing_day_can_be_acknowledged_with_blank_symbol(tmp_path):
+    from tradingsystem.data.checks import load_exceptions
+    b = clean_bars().drop(pd.Timestamp("2024-01-08"), level="date")
+    p = tmp_path / "data_exceptions.csv"
+    p.write_text("symbol,date,kind,note\n,2024-01-08,missing_day,exchange holiday missing from the calendar\n")
+    assert validate_bars(b, U, START, END, NO_ACTIONS, abnormal_move_pct=0.20, exceptions=load_exceptions(p)).ok
+
+
 def test_data_symbols_skips_acknowledged_no_data_symbols():
     from tradingsystem.data.checks import ALL_DATES, data_symbols
     exc = {("B", ALL_DATES, "missing_symbol"), ("A", pd.Timestamp("2024-01-03"), "missing_symbol")}

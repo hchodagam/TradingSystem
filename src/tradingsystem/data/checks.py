@@ -59,8 +59,9 @@ def validate_bars(bars: pd.DataFrame, universe: Universe, start: date, end: date
     report = _validate(bars, universe, start, end, actions, abnormal_move_pct)
     if not exceptions:
         return report
-    kept = [i for i in report.issues
-            if (i.symbol, i.date, i.kind) not in exceptions and (i.symbol, ALL_DATES, i.kind) not in exceptions]
+    kept = [i for i in report.issues  # a missing_day has no symbol: acknowledged with a blank symbol
+            if (i.symbol or "", i.date, i.kind) not in exceptions
+            and (i.symbol or "", ALL_DATES, i.kind) not in exceptions]
     return ValidationReport(ok=not kept, issues=kept)
 
 

@@ -1,3 +1,5 @@
 symbol,ex_date,factor,note
 ADANIENT,2015-06-03,5.8044,"Demerger into Adani Ports, Adani Power, Adani Transmission (record date 2015-06-04). Factor = prev close 385.64 / ex-day close 66.44; approximate (assumes no market move that day). Ex-day bar's open/high are at the pre-demerger price."
+SUNDARMFIN,2012-12-13,0.5,"Fixes Dhan data, not a new event: 1:1 bonus ex 2012-12-13 (NSE bhavcopy prev close 1057.95, close 509.95) but Dhan's earlier bars are at 1/4 of the old price instead of 1/2. Factor 0.5 doubles them back to a consistent basis."
+MOTHERSON,2024-04-30,1.5,"Fixes Dhan data: Dhan applied a 1:2 bonus adjustment from 2024-04-30 onward only (Dhan 87.47 vs NSE close 131.20 that day); dividing earlier bars by 1.5 puts the whole series on one basis."
 IDEA,2019-03-29,1.6556,"Rights issue 87:38 at Rs 12.50 (record date 2019-04-02). Factor = prev close 29.00 / theoretical ex-rights price 17.516."
