@@ -5,6 +5,9 @@ scrip_master_url: https://images.dhan.co/api-data/api-scrip-master.csv
 max_days_per_request: 1825
 retries: 4
 backoff_seconds: 2.0
+# Dhan pre-adjusts splits and bonuses (checked 2026-11-07: no split-like gaps in 100 stocks x 14 years), but
+# not demergers or rights issues. reference/corporate_actions.csv lists only those unadjusted events, so it
+# must stay applied: keep this false.
 prices_adjusted_by_dhan: false
 benchmark_symbol: NIFTY 100
 abnormal_move_pct: 0.20

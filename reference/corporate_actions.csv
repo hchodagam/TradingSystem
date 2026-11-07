@@ -1,1 +1,3 @@
-symbol,ex_date,factor
+symbol,ex_date,factor,note
+ADANIENT,2015-06-03,5.8044,"Demerger into Adani Ports, Adani Power, Adani Transmission (record date 2015-06-04). Factor = prev close 385.64 / ex-day close 66.44; approximate (assumes no market move that day). Ex-day bar's open/high are at the pre-demerger price."
+IDEA,2019-03-29,1.6556,"Rights issue 87:38 at Rs 12.50 (record date 2019-04-02). Factor = prev close 29.00 / theoretical ex-rights price 17.516."
