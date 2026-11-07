@@ -1,0 +1,12 @@
+# Owner-edited only. Code reads these values, never writes them.
+risk_per_trade_pct: 0.01
+atr_len: 14
+atr_stop_mult: 2.0
+max_position_pct: 0.20
+max_open_positions: 6
+max_per_sector: 2
+min_position_value: 5000
+upper_circuit_gap_pct: 0.10   # proxy: Dhan bars carry no circuit band
+kill_switch_dd_pct: 0.10
+data_missing_exit_days: 5
+initial_capital: 100000
